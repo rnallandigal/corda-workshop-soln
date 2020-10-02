@@ -74,7 +74,7 @@ public class IssueCashFlow {
             // Step 6. Collect the other party's signature using the SignTransactionFlow.
             List<FlowSession> sessions = output.getParticipants().stream()
                     .map(el -> (Party) el)
-                    .filter(el -> el != getOurIdentity())
+                    .filter(el -> !el.equals(sender))
                     .map(this::initiateFlow)
                     .collect(Collectors.toList());
 
@@ -106,15 +106,7 @@ public class IssueCashFlow {
                 }
 
                 @Override
-                protected void checkTransaction(SignedTransaction stx) {
-                    requireThat(require -> {
-//                            ContractState output = stx.getTx().getOutputs().get(0).getData();
-//                            require.using("This must be an IOU transaction.", output instanceof IOUState);
-//                            IOUState iou = (IOUState) output;
-//                            require.using("I won't accept IOUs with a value over 100.", iou.getValue() <= 100);
-                        return null;
-                    });
-                }
+                protected void checkTransaction(SignedTransaction stx) {}
             }
             final SignTxFlow signTxFlow = new SignTxFlow(otherPartySession, SignTransactionFlow.Companion.tracker());
             final SecureHash txId = subFlow(signTxFlow).getId();

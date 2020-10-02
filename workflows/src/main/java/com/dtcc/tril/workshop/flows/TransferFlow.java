@@ -15,8 +15,7 @@ import net.corda.core.utilities.ProgressTracker;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static net.corda.core.contracts.ContractsDSL.requireThat;
+import java.util.stream.Stream;
 
 public class TransferFlow {
     // ******************
@@ -81,9 +80,10 @@ public class TransferFlow {
             final SignedTransaction ptx = getServiceHub().signInitialTransaction(builder);
 
             // Step 6. Collect the other party's signature using the SignTransactionFlow.
-            List<Party> parties = Arrays.asList(party, counterparty);
-            parties.remove(getOurIdentity());
-            List<FlowSession> sessions = parties.stream().map(this::initiateFlow).collect(Collectors.toList());
+            List<FlowSession> sessions = Stream.of(party, counterparty)
+                    .filter(el -> !el.equals(getOurIdentity()))
+                    .map(this::initiateFlow)
+                    .collect(Collectors.toList());
 
             SignedTransaction stx = subFlow(new CollectSignaturesFlow(ptx, sessions));
 
@@ -93,14 +93,24 @@ public class TransferFlow {
 
         private StateAndRef<Cash> queryCash(Cash c) {
             return getServiceHub().getVaultService().queryBy(Cash.class).getStates().stream()
-                    .filter(it -> it.getState().getData().equals(c))
+                    .filter(it -> {
+                        Cash state = it.getState().getData();
+                        return state.getCurrency().equals(c.getCurrency())
+                                && Math.abs(state.getAmount() - c.getAmount()) < 0.001
+                                && state.getOwner().equals(c.getOwner());
+                    })
                     .findFirst().orElseThrow(() -> new RuntimeException("Could not find cash state in vault"));
         }
 
         private StateAndRef<Stock> queryStock(Stock s) {
             return getServiceHub().getVaultService().queryBy(Stock.class).getStates().stream()
-                    .filter(it -> it.getState().getData().equals(s))
-                    .findFirst().orElseThrow(() -> new RuntimeException("Could not find stock state in vault"));
+                    .filter(it -> {
+                        Stock state = it.getState().getData();
+                        return state.getTicker().equals(s.getTicker())
+                                && Math.abs(state.getAmount() - s.getAmount()) < 0.001
+                                && state.getOwner().equals(s.getOwner());
+                    })
+                    .findFirst().orElseThrow(() -> new RuntimeException("Could not find cash state in vault"));
         }
     }
 
@@ -125,15 +135,7 @@ public class TransferFlow {
                 }
 
                 @Override
-                protected void checkTransaction(SignedTransaction stx) {
-                    requireThat(require -> {
-//                            ContractState output = stx.getTx().getOutputs().get(0).getData();
-//                            require.using("This must be an IOU transaction.", output instanceof IOUState);
-//                            IOUState iou = (IOUState) output;
-//                            require.using("I won't accept IOUs with a value over 100.", iou.getValue() <= 100);
-                        return null;
-                    });
-                }
+                protected void checkTransaction(SignedTransaction stx) {}
             }
             final SignTxFlow signTxFlow = new SignTxFlow(otherPartySession, SignTransactionFlow.Companion.tracker());
             final SecureHash txId = subFlow(signTxFlow).getId();
