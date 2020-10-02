@@ -1,10 +1,7 @@
 package com.template.webserver;
 
 import com.dtcc.tril.workshop.flows.IssueCashFlow;
-import com.dtcc.tril.workshop.flows.IssueStockFlow;
-import com.dtcc.tril.workshop.flows.TransferFlow;
 import com.dtcc.tril.workshop.states.Cash;
-import com.dtcc.tril.workshop.states.Stock;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.corda.client.jackson.JacksonSupport;
 import net.corda.core.contracts.ContractState;
@@ -172,80 +169,6 @@ public class Controller {
                     currency,
                     amount,
                     receiver
-            ).getReturnValue().get();
-
-            // Return the response.
-            return ResponseEntity
-                    .status(HttpStatus.CREATED)
-                    .body("Transaction id "+ result.getId() +" committed to ledger.\n " + result.getTx().getOutput(0));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
-    }
-
-    @GetMapping(value = "/stocks", produces = APPLICATION_JSON_VALUE)
-    public List<StateAndRef<Stock>> getStocks() {
-        // Filter by state type: Stock.
-        return proxy.vaultQuery(Stock.class).getStates();
-    }
-
-    /**
-     * Displays all stock states owned by this node
-     */
-    @GetMapping(value = "/my-stocks", produces = APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<StateAndRef<Stock>>> getMyStocks() {
-        Party me = proxy.nodeInfo().getLegalIdentities().get(0);
-        List<StateAndRef<Stock>> myStocks = proxy.vaultQuery(Stock.class).getStates().stream()
-                .filter(it -> it.getState().getData().getOwner().equals(me))
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(myStocks);
-    }
-
-    @PostMapping(value = "/create-stock", produces = TEXT_PLAIN_VALUE)
-    public ResponseEntity<String> issueStock(
-            @RequestParam String ticker,
-            @RequestParam double amount,
-            @RequestParam String partyName
-    ) throws IllegalArgumentException {
-        CordaX500Name partyX500Name = CordaX500Name.parse(partyName);
-        Party receiver = proxy.wellKnownPartyFromX500Name(partyX500Name);
-
-        try {
-            // Start the Flow. We block and wait for the flow to return.
-            SignedTransaction result = proxy.startTrackedFlowDynamic(
-                    IssueStockFlow.Initiator.class,
-                    ticker,
-                    amount,
-                    receiver
-            ).getReturnValue().get();
-
-            // Return the response.
-            return ResponseEntity
-                    .status(HttpStatus.CREATED)
-                    .body("Transaction id "+ result.getId() +" committed to ledger.\n " + result.getTx().getOutput(0));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
-    }
-
-    @PostMapping(value = "/transfer", produces = TEXT_PLAIN_VALUE)
-    public ResponseEntity<String> transfer(
-            @RequestParam String currency,
-            @RequestParam double cashAmount,
-            @RequestParam String cashOwnerName,
-            @RequestParam String ticker,
-            @RequestParam double stockAmount,
-            @RequestParam String stockOwnerName
-    ) throws IllegalArgumentException {
-        Party cashOwner = proxy.wellKnownPartyFromX500Name(CordaX500Name.parse(cashOwnerName));
-        Party stockOwner = proxy.wellKnownPartyFromX500Name(CordaX500Name.parse(stockOwnerName));
-
-        try {
-            // Start the Flow. We block and wait for the flow to return.
-            SignedTransaction result = proxy.startTrackedFlowDynamic(
-                    TransferFlow.Initiator.class,
-                    new Cash(currency, cashAmount, cashOwner),
-                    new Stock(ticker, stockAmount, stockOwner)
             ).getReturnValue().get();
 
             // Return the response.

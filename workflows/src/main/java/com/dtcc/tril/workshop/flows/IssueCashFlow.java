@@ -1,7 +1,7 @@
 package com.dtcc.tril.workshop.flows;
 
 import co.paralleluniverse.fibers.Suspendable;
-import com.dtcc.tril.workshop.contracts.AssetContract;
+import com.dtcc.tril.workshop.contracts.CashContract;
 import com.dtcc.tril.workshop.states.Cash;
 import net.corda.core.contracts.ContractState;
 import net.corda.core.crypto.SecureHash;
@@ -64,7 +64,7 @@ public class IssueCashFlow {
             // Step 4. Add the Cash as an output state, as well as a command to the
             // transaction builder.
             builder.addOutputState((ContractState) output);
-            builder.addCommand(new AssetContract.Commands.IssueCash(),
+            builder.addCommand(new CashContract.Commands.IssueCash(),
                     Arrays.asList(this.sender.getOwningKey(), this.receiver.getOwningKey()));
 
             // Step 5. Verify and sign it with our KeyPair.
